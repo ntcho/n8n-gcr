@@ -128,6 +128,9 @@ gcloud artifacts repositories create n8n-repo \
 # Configure Docker to use gcloud as a credential helper
 gcloud auth configure-docker $REGION-docker.pkg.dev
 
+# Install buildx if not already installed (e.g. using Colima)
+brew install docker-buildx
+
 # Build and push your image
 docker build --platform linux/amd64 -t $REGION-docker.pkg.dev/$PROJECT_ID/n8n-repo/n8n:latest .
 docker push $REGION-docker.pkg.dev/$PROJECT_ID/n8n-repo/n8n:latest
@@ -142,7 +145,7 @@ Now for the database. We'll use the smallest instance type to keep costs reasona
 ```bash
 # Create a Cloud SQL instance (lowest cost tier)
 gcloud sql instances create n8n-db \
-    --database-version=POSTGRES_13 \
+    --database-version=POSTGRES_17 \
     --tier=db-f1-micro \
     --region=$REGION \
     --root-password="supersecure-rootpassword" \

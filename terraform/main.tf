@@ -58,9 +58,10 @@ resource "google_sql_database_instance" "n8n_db_instance" {
   name             = "${var.cloud_run_service_name}-db" # Use service name prefix for uniqueness
   project          = var.gcp_project_id
   region           = var.gcp_region
-  database_version = "POSTGRES_13"
+  database_version = "POSTGRES_17"
   settings {
     tier              = var.db_tier
+    edition           = "ENTERPRISE" # Needs to be explicitly set, if not it defaults to `ENTERPRISE_PLUS`. See https://github.com/hashicorp/terraform-provider-google/issues/20498
     availability_type = "ZONAL"  # Match guide
     disk_type         = "PD_HDD" # Match guide
     disk_size         = var.db_storage_size
@@ -88,7 +89,7 @@ resource "google_sql_user" "n8n_user" {
 # --- Secret Manager --- #
 # Generate a random password for the DB
 resource "random_password" "db_password" {
-  length      = 16
+  length      = 32
   special     = true
   min_upper   = 1
   min_lower   = 1
@@ -313,10 +314,6 @@ resource "google_cloud_run_v2_service" "n8n" {
         value = "60000"
       }
       env {
-        name  = "EXECUTIONS_PROCESS" # Added from GitHub issue solution
-        value = "main"
-      }
-      env {
         name  = "EXECUTIONS_MODE" # Added from GitHub issue solution
         value = "regular"
       }
@@ -324,13 +321,33 @@ resource "google_cloud_run_v2_service" "n8n" {
         name  = "N8N_LOG_LEVEL" # Added from GitHub issue solution
         value = "debug"
       }
+      env {
+        # https://docs.n8n.io/hosting/configuration/environment-variables/endpoints/
+        # The interval (in seconds) at which the insights data should be flushed to the database.
+        # Defaults to 30 seconds, which triggers the runtime 
+        name  = "N8N_INSIGHTS_FLUSH_INTERVAL_SECONDS"
+        value = "1800"
+      }
+      env {
+        # https://docs.n8n.io/hosting/configuration/environment-variables/endpoints/
+        # Enable the /metrics endpoint
+        name  = "N8N_METRICS"
+        value = "true"
+      }
+      env {
+        # https://docs.n8n.io/hosting/configuration/environment-variables/logs/#n8n-logs
+        # Output logs without ANSI colors
+        name  = "NO_COLOR"
+        value = "true"
+      }
 
       startup_probe {
-        initial_delay_seconds = 120 # Added from GitHub issue solution
-        timeout_seconds       = 240
-        period_seconds        = 10 # Reduced period for faster checks
-        failure_threshold     = 3  # Standard threshold
-        tcp_socket {
+        initial_delay_seconds = 15 # Added from GitHub issue solution
+        timeout_seconds       = 1
+        period_seconds        = 1  # Reduced period for faster checks
+        failure_threshold     = 45 # Fail after 1 minute (15s + 45s)
+        http_get {
+          path = "/healthz/readiness"
           port = var.cloud_run_container_port
         }
       }

@@ -7,7 +7,7 @@ variable "gcp_project_id" {
 variable "gcp_region" {
   description = "Google Cloud region for deployment."
   type        = string
-  default     = "us-west2" # Defaulting to your region
+  # No default - must be provided by user
 }
 
 variable "db_name" {
