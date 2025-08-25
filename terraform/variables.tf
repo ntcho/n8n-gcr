@@ -10,28 +10,22 @@ variable "gcp_region" {
   # No default - must be provided by user
 }
 
+variable "neon_region" {
+  description = "Neon region for deployment."
+  type        = string
+  # No default - must be provided by user
+}
+
 variable "db_name" {
-  description = "Name for the Cloud SQL database."
+  description = "Name for the Neon database."
   type        = string
   default     = "n8n"
 }
 
 variable "db_user" {
-  description = "Username for the Cloud SQL database user."
+  description = "Username for the Neon database user."
   type        = string
   default     = "n8n-user"
-}
-
-variable "db_tier" {
-  description = "Cloud SQL instance tier."
-  type        = string
-  default     = "db-f1-micro"
-}
-
-variable "db_storage_size" {
-  description = "Cloud SQL instance storage size in GB."
-  type        = number
-  default     = 10
 }
 
 variable "artifact_repo_name" {

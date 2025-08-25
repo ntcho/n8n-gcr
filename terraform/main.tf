@@ -4,6 +4,9 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 4.0"
     }
+    neon = {
+      source  = "kislerdm/neon"
+    }
   }
 }
 
@@ -11,6 +14,8 @@ provider "google" {
   project = var.gcp_project_id
   region  = var.gcp_region
 }
+
+provider "neon" {}
 
 # Data source to get the project number
 data "google_project" "project" {
@@ -25,11 +30,6 @@ resource "google_project_service" "artifactregistry" {
 
 resource "google_project_service" "run" {
   service            = "run.googleapis.com"
-  disable_on_destroy = false
-}
-
-resource "google_project_service" "sqladmin" {
-  service            = "sqladmin.googleapis.com"
   disable_on_destroy = false
 }
 
@@ -53,68 +53,28 @@ resource "google_artifact_registry_repository" "n8n_repo" {
   depends_on    = [google_project_service.artifactregistry]
 }
 
-# --- Cloud SQL --- #
-resource "google_sql_database_instance" "n8n_db_instance" {
-  name             = "${var.cloud_run_service_name}-db" # Use service name prefix for uniqueness
-  project          = var.gcp_project_id
-  region           = var.gcp_region
-  database_version = "POSTGRES_17"
-  settings {
-    tier              = var.db_tier
-    edition           = "ENTERPRISE" # Needs to be explicitly set, if not it defaults to `ENTERPRISE_PLUS`. See https://github.com/hashicorp/terraform-provider-google/issues/20498
-    availability_type = "ZONAL"  # Match guide
-    disk_type         = "PD_HDD" # Match guide
-    disk_size         = var.db_storage_size
-    backup_configuration {
-      enabled = false # Match guide
-    }
+# --- Neon Database --- #
+resource "neon_project" "n8n_db" {
+  name       = "n8n_db"
+  pg_version = 17
+  region_id  = var.neon_region  # https://neon.com/docs/introduction/regions
+
+  # Configure default branch settings
+  branch {
+    name          = "production"
+    database_name = var.db_name
+    role_name     = var.db_user
   }
-  deletion_protection = false # Allow deletion in Terraform
-  depends_on          = [google_project_service.sqladmin]
-}
 
-resource "google_sql_database" "n8n_database" {
-  name     = var.db_name
-  instance = google_sql_database_instance.n8n_db_instance.name
-  project  = var.gcp_project_id
-}
-
-resource "google_sql_user" "n8n_user" {
-  name     = var.db_user
-  instance = google_sql_database_instance.n8n_db_instance.name
-  password = random_password.db_password.result
-  project  = var.gcp_project_id
+  # Configure default endpoint settings
+  default_endpoint_settings {
+    # autoscaling_limit_min_cu = 0.25
+    autoscaling_limit_max_cu = 1.0
+    # suspend_timeout_seconds  = 300
+  }
 }
 
 # --- Secret Manager --- #
-# Generate a random password for the DB
-resource "random_password" "db_password" {
-  length      = 32
-  special     = true
-  min_upper   = 1
-  min_lower   = 1
-  min_numeric = 1
-  min_special = 1
-  keepers = {
-    db_instance = google_sql_database_instance.n8n_db_instance.name
-    db_user     = var.db_user
-  }
-}
-
-resource "google_secret_manager_secret" "db_password_secret" {
-  secret_id = "${var.cloud_run_service_name}-db-password"
-  project   = var.gcp_project_id
-  replication {
-    auto {}
-  }
-  depends_on = [google_project_service.secretmanager]
-}
-
-resource "google_secret_manager_secret_version" "db_password_secret_version" {
-  secret      = google_secret_manager_secret.db_password_secret.id
-  secret_data = random_password.db_password.result
-}
-
 # Secret Manager: n8n encryption key
 resource "random_password" "n8n_encryption_key" {
   length  = 32
@@ -141,24 +101,11 @@ resource "google_service_account" "n8n_sa" {
   project      = var.gcp_project_id
 }
 
-resource "google_secret_manager_secret_iam_member" "db_password_secret_accessor" {
-  project   = google_secret_manager_secret.db_password_secret.project
-  secret_id = google_secret_manager_secret.db_password_secret.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.n8n_sa.email}"
-}
-
 resource "google_secret_manager_secret_iam_member" "encryption_key_secret_accessor" {
   project   = google_secret_manager_secret.encryption_key_secret.project
   secret_id = google_secret_manager_secret.encryption_key_secret.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.n8n_sa.email}"
-}
-
-resource "google_project_iam_member" "sql_client" {
-  project = var.gcp_project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.n8n_sa.email}"
 }
 
 # --- Cloud Run Service --- #
@@ -184,18 +131,10 @@ resource "google_cloud_run_v2_service" "n8n" {
       max_instance_count = var.cloud_run_max_instances # Guide uses 1
       min_instance_count = 0
     }
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.n8n_db_instance.connection_name]
-      }
-    }
+    
     containers {
       image = local.n8n_image_name # IMPORTANT: Build and push this image manually first
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
-      }
+      
       ports {
         container_port = var.cloud_run_container_port
       }
@@ -232,12 +171,18 @@ resource "google_cloud_run_v2_service" "n8n" {
         value = var.db_user
       }
       env {
+        # Use Neon host from connection string
         name  = "DB_POSTGRESDB_HOST"
-        value = "/cloudsql/${google_sql_database_instance.n8n_db_instance.connection_name}"
+        value = split("@", split("//", split("?", neon_project.n8n_db.connection_uri)[0])[1])[1]
       }
       env {
         name  = "DB_POSTGRESDB_PORT"
         value = "5432"
+      }
+      env {
+        name  = "DB_POSTGRESDB_PASSWORD"
+        # Extract password from connection URI
+        value = split(":", split("//", neon_project.n8n_db.connection_uri)[1])[1]
       }
       env {
         name  = "DB_POSTGRESDB_SCHEMA"
@@ -254,15 +199,6 @@ resource "google_cloud_run_v2_service" "n8n" {
       env {
         name  = "QUEUE_HEALTH_CHECK_ACTIVE"
         value = "true"
-      }
-      env {
-        name = "DB_POSTGRESDB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password_secret.secret_id
-            version = "latest"
-          }
-        }
       }
       env {
         name = "N8N_ENCRYPTION_KEY"
@@ -361,10 +297,9 @@ resource "google_cloud_run_v2_service" "n8n" {
 
   depends_on = [
     google_project_service.run,
-    google_project_iam_member.sql_client,
-    google_secret_manager_secret_iam_member.db_password_secret_accessor,
     google_secret_manager_secret_iam_member.encryption_key_secret_accessor,
-    google_artifact_registry_repository.n8n_repo
+    google_artifact_registry_repository.n8n_repo,
+    neon_project.n8n_db
   ]
 }
 

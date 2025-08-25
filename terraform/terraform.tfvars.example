@@ -3,11 +3,11 @@
 
 # --- Optional (Defaults are likely suitable based on your setup) --- #
 # gcp_project_id = "your-project-id"
-# gcp_region     = "us-west2"
+# gcp_region     = "us-west2"      # https://cloud.google.com/run/pricing#tggroupindex-tindex
+# neon_region    = "aws-us-east-1" # https://neon.com/docs/introduction/regions
+# neon_api_key   = "napi_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # https://neon.com/docs/manage/api-keys
 # db_name        = "n8n"
 # db_user        = "n8n-user"
-# db_tier        = "db-f1-micro"
-# db_storage_size = 10
 # artifact_repo_name = "n8n-repo"
 # cloud_run_service_name = "n8n"
 # service_account_name = "n8n-service-account"
