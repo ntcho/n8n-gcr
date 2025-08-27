@@ -16,6 +16,18 @@ variable "neon_region" {
   # No default - must be provided by user
 }
 
+variable "neon_api_key" {
+  description = "Neon API key for authentication."
+  type        = string
+  # No default - must be provided by user
+}
+
+variable "neon_org_id" {
+  description = "Neon organization ID to create the project in."
+  type        = string
+  # No default - must be provided by user
+}
+
 variable "db_name" {
   description = "Name for the Neon database."
   type        = string

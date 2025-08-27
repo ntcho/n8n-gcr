@@ -15,7 +15,9 @@ provider "google" {
   region  = var.gcp_region
 }
 
-provider "neon" {}
+provider "neon" {
+  api_key = var.neon_api_key
+}
 
 # Data source to get the project number
 data "google_project" "project" {
@@ -55,6 +57,7 @@ resource "google_artifact_registry_repository" "n8n_repo" {
 
 # --- Neon Database --- #
 resource "neon_project" "n8n_db" {
+  org_id     = var.neon_org_id
   name       = "n8n_db"
   pg_version = 17
   region_id  = var.neon_region  # https://neon.com/docs/introduction/regions

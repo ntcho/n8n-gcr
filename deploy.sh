@@ -73,9 +73,6 @@ read_and_display_var() {
 # Read project ID with fallback to prompt
 GCP_PROJECT_ID_FROM_TFVARS=$(read_terraform_var "gcp_project_id" "")
 
-# Read Neon API key to env var with fallback to prompt
-NEON_API_KEY=$(read_terraform_var "neon_api_key" "")
-
 if [ -n "$GCP_PROJECT_ID_FROM_TFVARS" ]; then
     export GCP_PROJECT_ID="$GCP_PROJECT_ID_FROM_TFVARS"
 elif [ -n "$TF_VAR_gcp_project_id" ]; then

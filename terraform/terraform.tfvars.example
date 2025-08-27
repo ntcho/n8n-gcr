@@ -6,6 +6,7 @@
 # gcp_region     = "us-west2"      # https://cloud.google.com/run/pricing#tggroupindex-tindex
 # neon_region    = "aws-us-east-1" # https://neon.com/docs/introduction/regions
 # neon_api_key   = "napi_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # https://neon.com/docs/manage/api-keys
+# neon_org_id    = "org-XXXXXXXXXXXXXXXX" # https://console.neon.tech/app/
 # db_name        = "n8n"
 # db_user        = "n8n-user"
 # artifact_repo_name = "n8n-repo"
