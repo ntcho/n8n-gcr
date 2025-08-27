@@ -188,6 +188,16 @@ resource "google_cloud_run_v2_service" "n8n" {
         value = neon_project.n8n_db.database_password
       }
       env {
+        name  = "DB_POSTGRESDB_SSL_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "DB_POSTGRESDB_SSL_CA_FILE"
+        # Required to access Neon over SSL
+        # https://neon.com/docs/connect/connect-securely#location-of-system-root-certificates
+        value = "/etc/ssl/certs/ca-certificates.crt"
+      }
+      env {
         name  = "DB_POSTGRESDB_SCHEMA"
         value = "public"
       }
