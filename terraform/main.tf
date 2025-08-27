@@ -61,6 +61,7 @@ resource "neon_project" "n8n_db" {
   name       = "n8n_db"
   pg_version = 17
   region_id  = var.neon_region  # https://neon.com/docs/introduction/regions
+  history_retention_seconds = 21600  # limited to 6 hours in free tier
 
   # Configure default branch settings
   branch {
