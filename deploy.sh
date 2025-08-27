@@ -106,6 +106,12 @@ if [ ! -f "terraform/terraform.tfvars" ]; then
     exit 1
 fi
 
+# Check whether docker daemon is running
+if ! docker info >/dev/null 2>&1; then
+    echo >&2 "Docker daemon is not running. Aborting."
+    exit 1
+fi
+
 echo "--- Configuration --- "
 echo "Project ID:   ${GCP_PROJECT_ID}"
 echo "Region:       ${GCP_REGION}"
