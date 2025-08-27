@@ -41,6 +41,37 @@ variable "db_user" {
   default     = "n8n-user"
 }
 
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for managing Workers."
+  type        = string
+  sensitive   = true
+  # No default - must be provided by user
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID."
+  type        = string
+  # No default - must be provided by user
+}
+
+variable "cloudflare_account_name" {
+  description = "Cloudflare account name."
+  type        = string
+  # No default - must be provided by user
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare zone ID (optional, for custom domain)."
+  type        = string
+  default     = ""
+}
+
+variable "workers_domain" {
+  description = "Custom domain for Cloudflare Workers (optional)."
+  type        = string
+  default     = ""
+}
+
 variable "artifact_repo_name" {
   description = "Name for the Artifact Registry repository."
   type        = string

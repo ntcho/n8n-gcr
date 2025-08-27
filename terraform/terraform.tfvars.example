@@ -1,12 +1,17 @@
 # Example terraform.tfvars file
 # Rename this to terraform.tfvars and fill in the sensitive values.
 
-# --- Optional (Defaults are likely suitable based on your setup) --- #
+# --- Required --- #
 # gcp_project_id = "your-project-id"
 # gcp_region     = "us-west2"      # https://cloud.google.com/run/pricing#tggroupindex-tindex
 # neon_region    = "aws-us-east-1" # https://neon.com/docs/introduction/regions
 # neon_api_key   = "napi_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # https://neon.com/docs/manage/api-keys
 # neon_org_id    = "org-XXXXXXXXXXXXXXXX" # https://console.neon.tech/app/
+# cloudflare_api_token = "your-cloudflare-api-token"  # https://dash.cloudflare.com/profile/api-tokens
+# cloudflare_account_id = "your-cloudflare-account-id"  # Found in Cloudflare dashboard sidebar
+# cloudflare_account_name = "your-cloudflare-account-name"  # Found in Cloudflare dashboard > Account home
+
+# --- Optional (Defaults are likely suitable based on your setup) --- #
 # db_name        = "n8n"
 # db_user        = "n8n-user"
 # artifact_repo_name = "n8n-repo"
@@ -16,4 +21,6 @@
 # cloud_run_memory = "2Gi"
 # cloud_run_max_instances = 1
 # cloud_run_container_port = 5678
-# generic_timezone = "UTC" 
+# generic_timezone = "UTC"
+# cloudflare_zone_id = "your-zone-id"  # Only needed for custom domain
+# workers_domain = "n8n-webhooks.yourdomain.com"  # Only needed for custom domain

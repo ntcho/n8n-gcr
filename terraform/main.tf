@@ -5,7 +5,11 @@ terraform {
       version = ">= 4.0"
     }
     neon = {
-      source  = "kislerdm/neon"
+      source = "kislerdm/neon"
+    }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5"
     }
   }
 }
@@ -17,6 +21,10 @@ provider "google" {
 
 provider "neon" {
   api_key = var.neon_api_key
+}
+
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }
 
 # Data source to get the project number
@@ -116,9 +124,16 @@ resource "google_secret_manager_secret_iam_member" "encryption_key_secret_access
 locals {
   # Construct the image name dynamically
   n8n_image_name = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/${var.artifact_repo_name}/${var.cloud_run_service_name}:latest"
+
   # Construct the service URL dynamically for env vars
-  service_url  = "https://${var.cloud_run_service_name}-${google_project_service.run.project}.run.app" # Assuming default URL format
-  service_host = replace(local.service_url, "https://", "")
+  cloud_run_host = "${var.cloud_run_service_name}-${data.google_project.project.number}.${var.gcp_region}.run.app"
+  cloud_run_url  = "https://${local.cloud_run_host}"
+
+  # Path to Workers script
+  workers_script_path = "${path.module}/../functions/webhook-proxy.mjs"
+
+  # Workers URL - use custom domain if provided, otherwise use workers.dev subdomain
+  workers_url = var.workers_domain != "" ? "https://${var.workers_domain}" : "https://n8n-webhook-proxy.${var.cloudflare_account_name}.workers.dev"
 }
 
 resource "google_cloud_run_v2_service" "n8n" {
@@ -225,22 +240,22 @@ resource "google_cloud_run_v2_service" "n8n" {
       env {
         name = "N8N_HOST"
         # Construct hostname dynamically using project number and region
-        value = "${var.cloud_run_service_name}-${data.google_project.project.number}.${var.gcp_region}.run.app"
+        value = local.cloud_run_host
       }
       env {
         name = "N8N_WEBHOOK_URL" # Deprecated but may be needed by older nodes/workflows
-        # Construct URL dynamically using project number and region
-        value = "https://${var.cloud_run_service_name}-${data.google_project.project.number}.${var.gcp_region}.run.app"
+        # Use Cloudflare Workers URL for webhook handling
+        value = local.workers_url
       }
       env {
         name = "N8N_EDITOR_BASE_URL"
         # Construct URL dynamically using project number and region
-        value = "https://${var.cloud_run_service_name}-${data.google_project.project.number}.${var.gcp_region}.run.app"
+        value = local.cloud_run_url
       }
       env {
         name = "WEBHOOK_URL" # Current version
-        # Construct URL dynamically using project number and region
-        value = "https://${var.cloud_run_service_name}-${data.google_project.project.number}.${var.gcp_region}.run.app"
+        # Use Cloudflare Workers URL for webhook handling
+        value = local.workers_url
       }
       env {
         name  = "N8N_RUNNERS_ENABLED"
@@ -323,4 +338,48 @@ resource "google_cloud_run_v2_service_iam_member" "n8n_public_invoker" {
   name     = google_cloud_run_v2_service.n8n.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# --- Cloudflare Workers --- #
+resource "cloudflare_workers_script" "webhook_proxy" {
+  account_id         = var.cloudflare_account_id
+  script_name        = "n8n-webhook-proxy"
+  compatibility_date = "2025-08-15"
+  content_file       = local.workers_script_path
+  content_sha256     = filesha256(local.workers_script_path)
+  main_module        = basename(local.workers_script_path)
+
+  bindings = [{
+    name = "N8N_URL"
+    type = "plain_text"
+    text = local.cloud_run_url
+  }]
+
+  observability = {
+    enabled            = true
+    head_sampling_rate = 1.0
+    logs = {
+      enabled            = true
+      invocation_logs    = true
+      head_sampling_rate = 1.0
+    }
+  }
+
+  depends_on = [google_cloud_run_v2_service.n8n]
+}
+
+# Deploy the Workers script to subdomain
+resource "cloudflare_workers_script_subdomain" "webhook_proxy" {
+  account_id  = var.cloudflare_account_id
+  script_name = cloudflare_workers_script.webhook_proxy.id
+  enabled     = true
+  # previews_enabled = true # enable this if you want to preview changes
+}
+
+# Deploy the Workers script to custom domain
+resource "cloudflare_workers_route" "webhook_proxy_route" {
+  count   = var.cloudflare_zone_id != "" && var.workers_domain != "" ? 1 : 0
+  zone_id = var.cloudflare_zone_id
+  pattern = "${var.workers_domain}/*"
+  script  = cloudflare_workers_script.webhook_proxy.id
 }
