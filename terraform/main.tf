@@ -65,11 +65,11 @@ resource "google_artifact_registry_repository" "n8n_repo" {
 
 # --- Neon Database --- #
 resource "neon_project" "n8n_db" {
-  org_id     = var.neon_org_id
-  name       = "n8n_db"
-  pg_version = 17
-  region_id  = var.neon_region  # https://neon.com/docs/introduction/regions
-  history_retention_seconds = 21600  # limited to 6 hours in free tier
+  org_id                    = var.neon_org_id
+  name                      = "n8n_db"
+  pg_version                = 17
+  region_id                 = var.neon_region # https://neon.com/docs/introduction/regions
+  history_retention_seconds = 21600           # limited to 6 hours in free tier
 
   # Configure default branch settings
   branch {
@@ -150,10 +150,10 @@ resource "google_cloud_run_v2_service" "n8n" {
       max_instance_count = var.cloud_run_max_instances # Guide uses 1
       min_instance_count = 0
     }
-    
+
     containers {
       image = local.n8n_image_name # IMPORTANT: Build and push this image manually first
-      
+
       ports {
         container_port = var.cloud_run_container_port
       }
@@ -168,7 +168,6 @@ resource "google_cloud_run_v2_service" "n8n" {
         name  = "N8N_PATH"
         value = "/"
       }
-      
       env {
         name  = "N8N_PORT"
         value = "443"
@@ -207,7 +206,7 @@ resource "google_cloud_run_v2_service" "n8n" {
         value = "true"
       }
       env {
-        name  = "DB_POSTGRESDB_SSL_CA_FILE"
+        name = "DB_POSTGRESDB_SSL_CA_FILE"
         # Required to access Neon over SSL
         # https://neon.com/docs/connect/connect-securely#location-of-system-root-certificates
         value = "/etc/ssl/certs/ca-certificates.crt"
