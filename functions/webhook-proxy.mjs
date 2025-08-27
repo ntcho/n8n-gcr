@@ -19,6 +19,15 @@ export default {
     const url = new URL(request.url);
     const targetRequestUrl = `${targetUrl}${url.pathname}${url.search}`;
 
+    // Drop all non-webhook requests to prevent cold starts
+    if (!url.pathname.startsWith("/webhook/")) {
+      return new Response("Bad request. This endpoint is not a webhook.", {
+        status: 400,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
+    // For webhook requests, use retry logic for cold starts
     // Retry up to 60 seconds (5s intervals)
     const maxRetries = 12;
     const retryDelay = 5000;
