@@ -177,7 +177,7 @@ resource "google_cloud_run_v2_service" "n8n" {
       env {
         # Use Neon host from connection string
         name  = "DB_POSTGRESDB_HOST"
-        value = split("@", split("//", split("?", neon_project.n8n_db.connection_uri)[0])[1])[1]
+        value = neon_project.n8n_db.database_host
       }
       env {
         name  = "DB_POSTGRESDB_PORT"
@@ -185,8 +185,7 @@ resource "google_cloud_run_v2_service" "n8n" {
       }
       env {
         name  = "DB_POSTGRESDB_PASSWORD"
-        # Extract password from connection URI
-        value = split(":", split("//", neon_project.n8n_db.connection_uri)[1])[1]
+        value = neon_project.n8n_db.database_password
       }
       env {
         name  = "DB_POSTGRESDB_SCHEMA"
