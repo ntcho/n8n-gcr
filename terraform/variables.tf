@@ -19,6 +19,7 @@ variable "neon_region" {
 variable "neon_api_key" {
   description = "Neon API key for authentication."
   type        = string
+  sensitive   = true
   # No default - must be provided by user
 }
 
