@@ -130,7 +130,8 @@ terraform init -reconfigure
 
 echo "Applying target: ${tf_service_resource} and ${tf_repo_resource}..."
 # Apply only the API enablement and the repo creation first
-terraform apply -target="$tf_service_resource" -target="$tf_repo_resource" -auto-approve
+# terraform apply -target="$tf_service_resource" -target="$tf_repo_resource" -auto-approve
+terraform apply -target="$tf_service_resource" -target="$tf_repo_resource"
 
 # Go back to root for Docker commands
 cd ..
@@ -150,7 +151,8 @@ docker push "${IMAGE_TAG}"
 # --- Step 5: Apply Remaining Terraform Configuration --- #
 echo "\n---> Applying full Terraform configuration..."
 cd terraform
-terraform apply -auto-approve
+# terraform apply -auto-approve
+terraform apply
 
 echo "\n---> Deployment process completed."
 N8N_URL=$(terraform output -raw cloud_run_service_url)
