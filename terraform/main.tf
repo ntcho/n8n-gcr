@@ -369,10 +369,10 @@ resource "cloudflare_workers_script" "webhook_proxy" {
 
 # Deploy the Workers script to subdomain
 resource "cloudflare_workers_script_subdomain" "webhook_proxy" {
-  account_id  = var.cloudflare_account_id
-  script_name = cloudflare_workers_script.webhook_proxy.id
-  enabled     = true
-  # previews_enabled = true # enable this if you want to preview changes
+  account_id       = var.cloudflare_account_id
+  script_name      = cloudflare_workers_script.webhook_proxy.id
+  enabled          = true
+  previews_enabled = false # enable this if you want to preview changes
 }
 
 # Deploy the Workers script to custom domain
