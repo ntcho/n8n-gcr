@@ -24,7 +24,7 @@ provider "neon" {
 }
 
 provider "cloudflare" {
-  api_token = var.cloudflare_api_token
+  api_token = var.cf_api_token
 }
 
 # Data source to get the project number
@@ -133,7 +133,7 @@ locals {
   workers_script_path = "${path.module}/../functions/webhook-proxy.mjs"
 
   # Workers URL - use custom domain if provided, otherwise use workers.dev subdomain
-  workers_url = var.workers_domain != "" ? "https://${var.workers_domain}" : "https://n8n-webhook-proxy.${var.cloudflare_account_name}.workers.dev"
+  workers_url = var.workers_domain != "" ? "https://${var.workers_domain}" : "https://n8n-webhook-proxy.${var.cf_account_name}.workers.dev"
 }
 
 resource "google_cloud_run_v2_service" "n8n" {
@@ -341,7 +341,7 @@ resource "google_cloud_run_v2_service_iam_member" "n8n_public_invoker" {
 
 # --- Cloudflare Workers --- #
 resource "cloudflare_workers_script" "webhook_proxy" {
-  account_id         = var.cloudflare_account_id
+  account_id         = var.cf_account_id
   script_name        = "n8n-webhook-proxy"
   compatibility_date = "2025-08-15"
   content_file       = local.workers_script_path
@@ -369,7 +369,7 @@ resource "cloudflare_workers_script" "webhook_proxy" {
 
 # Deploy the Workers script to subdomain
 resource "cloudflare_workers_script_subdomain" "webhook_proxy" {
-  account_id       = var.cloudflare_account_id
+  account_id       = var.cf_account_id
   script_name      = cloudflare_workers_script.webhook_proxy.id
   enabled          = true
   previews_enabled = false # enable this if you want to preview changes
@@ -377,8 +377,8 @@ resource "cloudflare_workers_script_subdomain" "webhook_proxy" {
 
 # Deploy the Workers script to custom domain
 resource "cloudflare_workers_route" "webhook_proxy_route" {
-  count   = var.cloudflare_zone_id != "" && var.workers_domain != "" ? 1 : 0
-  zone_id = var.cloudflare_zone_id
+  count   = var.cf_zone_id != "" && var.workers_domain != "" ? 1 : 0
+  zone_id = var.cf_zone_id
   pattern = "${var.workers_domain}/*"
   script  = cloudflare_workers_script.webhook_proxy.id
 }

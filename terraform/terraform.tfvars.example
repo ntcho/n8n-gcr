@@ -2,14 +2,14 @@
 # Rename this to terraform.tfvars and fill in the sensitive values.
 
 # --- Required --- #
-# gcp_project_id = "your-project-id"
-# gcp_region     = "us-west2"      # https://cloud.google.com/run/pricing#tggroupindex-tindex
-# neon_region    = "aws-us-east-1" # https://neon.com/docs/introduction/regions
-# neon_api_key   = "napi_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # https://neon.com/docs/manage/api-keys
-# neon_org_id    = "org-XXXXXXXXXXXXXXXX" # https://console.neon.tech/app/
-# cloudflare_api_token = "your-cloudflare-api-token"  # https://dash.cloudflare.com/profile/api-tokens
-# cloudflare_account_id = "your-cloudflare-account-id"  # Found in Cloudflare dashboard sidebar
-# cloudflare_account_name = "your-cloudflare-account-name"  # Found in Cloudflare dashboard > Account home
+# gcp_project_id  = "your-project-id"
+# gcp_region      = "us-west2"      # https://cloud.google.com/run/pricing#tggroupindex-tindex
+# neon_region     = "aws-us-east-1" # https://neon.com/docs/introduction/regions
+# neon_api_key    = "napi_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" # https://neon.com/docs/manage/api-keys
+# neon_org_id     = "org-XXXXXXXXXXXXXXXX" # https://console.neon.tech/app/
+# cf_api_token    = "your-cloudflare-api-token"  # https://dash.cloudflare.com/profile/api-tokens
+# cf_account_id   = "your-cloudflare-account-id"  # Found in Cloudflare dashboard sidebar
+# cf_account_name = "your-cloudflare-account-name"  # Found in Cloudflare dashboard > Account home
 
 # --- Optional (Defaults are likely suitable based on your setup) --- #
 # db_name        = "n8n"
@@ -22,5 +22,5 @@
 # cloud_run_max_instances = 1
 # cloud_run_container_port = 5678
 # generic_timezone = "UTC"
-# cloudflare_zone_id = "your-zone-id"  # Only needed for custom domain
+# cf_zone_id = "your-zone-id"  # Only needed for custom domain
 # workers_domain = "n8n-webhooks.yourdomain.com"  # Only needed for custom domain

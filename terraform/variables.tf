@@ -41,26 +41,26 @@ variable "db_user" {
   default     = "n8n-user"
 }
 
-variable "cloudflare_api_token" {
+variable "cf_api_token" {
   description = "Cloudflare API token for managing Workers."
   type        = string
   sensitive   = true
   # No default - must be provided by user
 }
 
-variable "cloudflare_account_id" {
+variable "cf_account_id" {
   description = "Cloudflare account ID."
   type        = string
   # No default - must be provided by user
 }
 
-variable "cloudflare_account_name" {
+variable "cf_account_name" {
   description = "Cloudflare account name."
   type        = string
   # No default - must be provided by user
 }
 
-variable "cloudflare_zone_id" {
+variable "cf_zone_id" {
   description = "Cloudflare zone ID (optional, for custom domain)."
   type        = string
   default     = ""
