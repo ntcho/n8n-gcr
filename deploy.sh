@@ -97,6 +97,19 @@ export IMAGE_TAG="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO_NAME}
 
 # --- Check Prerequisites --- #
 command -v gcloud >/dev/null 2>&1 || { echo >&2 "gcloud is required but it's not installed. Aborting."; exit 1; }
+
+# Check whether the gcloud project is set to GCP_PROJECT_ID_FROM_TFVARS
+if ! gcloud config get-value project 2>/dev/null | grep -q "${GCP_PROJECT_ID_FROM_TFVARS}"; then
+    echo >&2 "gcloud project is not set to ${GCP_PROJECT_ID_FROM_TFVARS}. Aborting."
+    exit 1
+fi
+
+# Check whether the gcloud application-default set-quota-project is set to "CURRENT_PROJECT"
+if ! gcloud config get-value billing/quota_project 2>/dev/null | grep -q "CURRENT_PROJECT"; then
+    echo >&2 "gcloud quota project is not set to CURRENT_PROJECT. Aborting."
+    exit 1
+fi
+
 command -v docker >/dev/null 2>&1 || { echo >&2 "docker is required but it's not installed. Aborting."; exit 1; }
 command -v terraform >/dev/null 2>&1 || { echo >&2 "terraform is required but it's not installed. Aborting."; exit 1; }
 
