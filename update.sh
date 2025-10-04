@@ -3,15 +3,76 @@
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
-# --- Configuration --- #
-# Attempt to read project ID from terraform.tfvars
-if [ -f "terraform/terraform.tfvars" ]; then
-    # Extract the value, remove quotes and comments
-    GCP_PROJECT_ID_FROM_TFVARS=$(grep -E '^[[:space:]]*gcp_project_id[[:space:]]*=' terraform/terraform.tfvars | awk -F'=' '{print $2}' | awk '{$1=$1};1' | tr -d '"' | awk -F'#' '{print $1}' | awk '{$1=$1};1')
-    GCP_REGION_FROM_TFVARS=$(grep -E '^[[:space:]]*gcp_region[[:space:]]*=' terraform/terraform.tfvars | awk -F'=' '{print $2}' | awk '{$1=$1};1' | tr -d '"' | awk -F'#' '{print $1}' | awk '{$1=$1};1')
-fi
+# This script automatically reads configuration variables from Terraform files:
+# 1. First checks terraform.tfvars for explicit values
+# 2. Falls back to defaults defined in variables.tf
+# 3. Uses hardcoded fallbacks as a last resort
 
-# Use value from TFVARS, or environment variable, or prompt user
+# Function to read Terraform variable values
+# Priority: terraform.tfvars > variables.tf default > hardcoded fallback
+read_terraform_var() {
+    local var_name="$1"
+    local fallback_value="$2"
+    
+    # First try to read from terraform.tfvars
+    if [ -f "terraform/terraform.tfvars" ]; then
+        local tfvars_value=$(grep -E "^[[:space:]]*${var_name}[[:space:]]*=" terraform/terraform.tfvars 2>/dev/null | \
+            awk -F'=' '{print $2}' | \
+            awk '{$1=$1};1' | \
+            tr -d '"' | \
+            awk -F'#' '{print $1}' | \
+            awk '{$1=$1};1')
+        
+        if [ -n "$tfvars_value" ]; then
+            echo "$tfvars_value"
+            return 0
+        fi
+    fi
+    
+    # If not in tfvars, try to read default from variables.tf
+    if [ -f "terraform/variables.tf" ]; then
+        local default_value=$(grep -A 5 "variable \"${var_name}\"" terraform/variables.tf 2>/dev/null | \
+            grep "default[[:space:]]*=" | \
+            awk -F'=' '{print $2}' | \
+            awk '{$1=$1};1' | \
+            tr -d '"' | \
+            awk -F'#' '{print $1}' | \
+            awk '{$1=$1};1')
+        
+        if [ -n "$default_value" ]; then
+            echo "$default_value"
+            return 0
+        fi
+    fi
+    
+    # Fallback to provided fallback value
+    echo "$fallback_value"
+}
+
+# Function to read and display variable source
+read_and_display_var() {
+    local var_name="$1"
+    local fallback_value="$2"
+    local value=$(read_terraform_var "$var_name" "$fallback_value")
+    
+    # Determine source for display
+    local source=""
+    if [ -f "terraform/terraform.tfvars" ] && grep -q "^[[:space:]]*${var_name}[[:space:]]*=" terraform/terraform.tfvars 2>/dev/null; then
+        source="terraform.tfvars"
+    elif [ -f "terraform/variables.tf" ] && grep -A 5 "variable \"${var_name}\"" terraform/variables.tf | grep -q "default[[:space:]]*="; then
+        source="variables.tf default"
+    else
+        source="fallback"
+    fi
+    
+    echo "$value"
+    echo "  (from $source)" >&2
+}
+
+# --- Configuration --- #
+# Read project ID with fallback to prompt
+GCP_PROJECT_ID_FROM_TFVARS=$(read_terraform_var "gcp_project_id" "")
+
 if [ -n "$GCP_PROJECT_ID_FROM_TFVARS" ]; then
     export GCP_PROJECT_ID="$GCP_PROJECT_ID_FROM_TFVARS"
 elif [ -n "$TF_VAR_gcp_project_id" ]; then
@@ -26,17 +87,29 @@ else
     export GCP_PROJECT_ID="$GCP_PROJECT_ID_INPUT"
 fi
 
-export GCP_REGION="${GCP_REGION_FROM_TFVARS:-us-west2}"
+# Automatically read other variables from Terraform
+echo "Reading Terraform variables..."
+export GCP_REGION=$(read_and_display_var "gcp_region" "us-east1")
+export AR_REPO_NAME=$(read_and_display_var "artifact_repo_name" "n8n-repo")
+export SERVICE_NAME=$(read_and_display_var "cloud_run_service_name" "n8n")
 
-# TODO: add tfvar auto-read support
-export AR_REPO_NAME="${TF_VAR_artifact_repo_name:-n8n-repo}"
-export SERVICE_NAME="${TF_VAR_cloud_run_service_name:-n8n}"
-
-export IMAGE_TAG_LATEST="docker.n8n.io/n8nio/n8n:latest"
 export IMAGE_TAG="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${AR_REPO_NAME}/${SERVICE_NAME}:latest"
 
 # --- Check Prerequisites --- #
 command -v gcloud >/dev/null 2>&1 || { echo >&2 "gcloud is required but it's not installed. Aborting."; exit 1; }
+
+# Check whether the gcloud project is set to GCP_PROJECT_ID_FROM_TFVARS
+if ! gcloud config get-value project 2>/dev/null | grep -q "${GCP_PROJECT_ID_FROM_TFVARS}"; then
+    echo >&2 "gcloud project is not set to ${GCP_PROJECT_ID_FROM_TFVARS}. Aborting."
+    exit 1
+fi
+
+# Check whether the gcloud application-default set-quota-project is set to "CURRENT_PROJECT"
+if ! gcloud config get-value billing/quota_project 2>/dev/null | grep -q "CURRENT_PROJECT"; then
+    echo >&2 "gcloud quota project is not set to CURRENT_PROJECT. Aborting."
+    exit 1
+fi
+
 command -v docker >/dev/null 2>&1 || { echo >&2 "docker is required but it's not installed. Aborting."; exit 1; }
 command -v terraform >/dev/null 2>&1 || { echo >&2 "terraform is required but it's not installed. Aborting."; exit 1; }
 
@@ -46,12 +119,20 @@ if [ ! -f "terraform/terraform.tfvars" ]; then
     exit 1
 fi
 
+# Check whether docker daemon is running
+if ! docker info >/dev/null 2>&1; then
+    echo >&2 "Docker daemon is not running. Aborting."
+    exit 1
+fi
+
 echo "--- Configuration --- "
 echo "Project ID:   ${GCP_PROJECT_ID}"
 echo "Region:       ${GCP_REGION}"
 echo "Image Tag:    ${IMAGE_TAG}"
 echo "Repo Name:    ${AR_REPO_NAME}"
 echo "---------------------"
+
+export IMAGE_TAG_LATEST="docker.n8n.io/n8nio/n8n:latest"
 
 # --- Step 1: Configure Docker --- #
 echo "\n---> Configuring Docker authentication..."
